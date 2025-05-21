@@ -1,7 +1,3 @@
-"""
-Script to generate captions for images using a trained CNN-based Arabic image captioning model.
-"""
-
 import os
 import argparse
 import torch

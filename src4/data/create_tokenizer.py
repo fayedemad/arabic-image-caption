@@ -1,10 +1,5 @@
-"""
-Script to create and train a new tokenizer for Arabic captions.
-"""
-
 import os
 from transformers import AutoTokenizer
-from tqdm import tqdm
 
 def create_tokenizer(caption_files, output_dir, vocab_size=64000):
     """
@@ -15,10 +10,8 @@ def create_tokenizer(caption_files, output_dir, vocab_size=64000):
         output_dir: Directory to save the tokenizer
         vocab_size: Size of the vocabulary
     """
-    # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
-    # Read all captions
     print("Reading captions...")
     captions = []
     for caption_file in caption_files:
@@ -29,11 +22,9 @@ def create_tokenizer(caption_files, output_dir, vocab_size=64000):
     
     print(f"Read {len(captions)} captions")
     
-    # Initialize tokenizer
     print("Initializing tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained("aubmindlab/bert-base-arabertv2")
     
-    # Train tokenizer
     print("Training tokenizer...")
     tokenizer = tokenizer.train_new_from_iterator(
         captions,
@@ -42,15 +33,12 @@ def create_tokenizer(caption_files, output_dir, vocab_size=64000):
         show_progress=True
     )
     
-    # Save tokenizer
     print(f"Saving tokenizer to {output_dir}...")
     tokenizer.save_pretrained(output_dir)
     
-    # Print some statistics
     print("\nTokenizer Statistics:")
     print(f"Vocabulary size: {len(tokenizer)}")
     
-    # Test tokenizer
     print("\nTesting tokenizer on a sample caption:")
     sample_caption = captions[0]
     print(f"Original: {sample_caption}")
@@ -61,12 +49,11 @@ def create_tokenizer(caption_files, output_dir, vocab_size=64000):
     return tokenizer
 
 if __name__ == '__main__':
-    # Create new tokenizer
     create_tokenizer(
         caption_files=[
             'data/train_captions.txt',
             'data/val_captions.txt'
         ],
         output_dir='tokenizer_new',
-        vocab_size=64000
+        vocab_size=9462
     ) 

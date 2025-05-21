@@ -1,7 +1,3 @@
-"""
-Dataset class for CNN-based Arabic image captioning.
-"""
-
 import os
 import torch
 from torch.utils.data import Dataset
@@ -22,14 +18,11 @@ class CNNArabicCaptionDataset(Dataset):
     - caption is the Arabic caption text
     """
     def __init__(self, image_dir, caption_file, tokenizer=None, max_length=50):
-        # Update image directory to point to images subdirectory
         self.image_dir = os.path.join(image_dir, 'images')
-        # raise Exception(image_dir + "/images")
         self.caption_file = caption_file
         self.tokenizer = tokenizer or AutoTokenizer.from_pretrained("aubmindlab/bert-base-arabertv2")
         self.max_length = max_length
         
-        # Add special tokens if not already present
         special_tokens = {
             "pad_token": "[PAD]",
             "bos_token": "[BOS]",
@@ -38,27 +31,22 @@ class CNNArabicCaptionDataset(Dataset):
         }
         self.tokenizer.add_special_tokens(special_tokens)
         
-        # Image transforms for EfficientNet - keep only CPU operations
         self.transform = transforms.Compose([
-            transforms.Resize((380, 380)),  # EfficientNet-B4 input size
+            transforms.Resize((380, 380)), 
             transforms.CenterCrop(380),
             transforms.ToTensor(),
         ])
         
-        # Normalization will be done on GPU
         self.normalize = transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
             std=[0.229, 0.224, 0.225]
         )
         
-        # Initialize samples
         self.samples = []
         
-        # Check if image directory exists
         if not os.path.exists(self.image_dir):
             raise ValueError(f"Image directory not found: {self.image_dir}")
             
-        # List available images
         self.available_images = set()
         for root, _, files in os.walk(self.image_dir):
             for file in files:
@@ -67,55 +55,44 @@ class CNNArabicCaptionDataset(Dataset):
         
         print(f"Found {len(self.available_images)} images in {self.image_dir}")
         
-        # Read and process caption file
         with open(caption_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             
         print(f"Reading {len(lines)} lines from {caption_file}")
         
-        # Process each line
         for line_num, line in enumerate(lines, 1):
             line = line.strip()
             if not line:  # Skip empty lines
                 continue
                 
-            # Try to parse the line
             try:
-                # First try tab-separated format
                 if '\t' in line:
                     image_id_with_number, caption = line.split('\t', 1)
                 else:
-                    # If no tab, try to find a valid image filename at the start
                     parts = re.split(r'[\s,]+', line, 1)
                     if len(parts) != 2:
                         print(f"Warning: Line {line_num}: Invalid format (no separator): {line}")
                         continue
                     image_id_with_number, caption = parts
                 
-                # Split image_id and number
                 if '#' in image_id_with_number:
                     image_id, caption_number = image_id_with_number.split('#', 1)
                 else:
-                    # If no #, assume it's just an image ID and assign number 1
                     image_id = image_id_with_number
                     caption_number = "1"
                 
-                # Clean up image_id and caption
                 image_id = image_id.strip()
                 caption = caption.strip()
                 
-                # Skip if no caption
                 if not caption:
                     print(f"Warning: Line {line_num}: Empty caption for image {image_id}")
                     continue
                     
-                # Check if image exists
                 image_path = os.path.join(self.image_dir, image_id)
                 if not os.path.exists(image_path):
                     print(f"Warning: Line {line_num}: Image not found: {image_id}")
                     continue
                 
-                # Pre-tokenize caption
                 encoding = self.tokenizer(
                     caption,
                     max_length=self.max_length,
@@ -124,7 +101,6 @@ class CNNArabicCaptionDataset(Dataset):
                     return_tensors='pt'
                 )
                 
-                # Add to samples
                 self.samples.append({
                     'image_id': image_id,
                     'caption': caption,
@@ -174,7 +150,6 @@ class CNNArabicCaptionDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.samples[idx]
         
-        # Load and preprocess image (now cached)
         image = self._load_image(sample['image_id'])
         
         return {
@@ -190,12 +165,10 @@ def collate_fn(batch):
     """
     Collate function for the dataloader.
     """
-    # Stack tensors
     caption_ids = torch.stack([item['caption_ids'] for item in batch])
     attention_masks = torch.stack([item['attention_mask'] for item in batch])
     pixel_values = torch.stack([item['pixel_values'] for item in batch])
     
-    # Get other items
     image_ids = [item['image_id'] for item in batch]
     captions = [item['caption'] for item in batch]
     caption_numbers = [item['caption_number'] for item in batch]

@@ -1,7 +1,3 @@
-"""
-Training script for CNN-based Arabic image captioning model.
-"""
-
 import os
 import sys
 import argparse
@@ -12,8 +8,6 @@ from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 from tqdm import tqdm
 import wandb
 import time
-
-# Add project root to Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
 
@@ -21,7 +15,6 @@ from src4.data.dataset import CNNArabicCaptionDataset, collate_fn
 from src4.models.cnn_captioner import CNNArabicCaptioner
 
 def train(args):
-    # Initialize wandb if enabled
     if args.use_wandb:
         try:
             wandb.init(project="arabic-image-captioning", config=vars(args))
@@ -30,22 +23,18 @@ def train(args):
             print("Continuing without wandb logging...")
             args.use_wandb = False
     
-    # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
         print(f"Memory allocated: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB")
     
-    # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Load tokenizer
     print("Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_dir)
     print(f"Tokenizer vocabulary size: {len(tokenizer)}")
     
-    # Create datasets
     print("Creating datasets...")
     train_dataset = CNNArabicCaptionDataset(
         image_dir=args.image_dir,
@@ -61,7 +50,6 @@ def train(args):
         max_length=args.max_length
     )
     
-    # Create data loaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -82,7 +70,6 @@ def train(args):
         collate_fn=collate_fn
     )
     
-    # Create model
     print("Creating model...")
     model = CNNArabicCaptioner(
         vocab_size=len(tokenizer),
@@ -92,11 +79,9 @@ def train(args):
     )
     model = model.to(device)
     
-    # Calculate total training steps for scheduler
     total_steps = len(train_loader) * args.num_epochs
     warmup_steps = int(total_steps * args.warmup_ratio)
     
-    # Create optimizer and scheduler
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.learning_rate,
@@ -111,10 +96,8 @@ def train(args):
         num_training_steps=total_steps
     )
     
-    # Create loss function
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     
-    # Training loop
     print("Starting training...")
     best_val_loss = float('inf')
     
@@ -123,23 +106,15 @@ def train(args):
         total_loss = 0
         total_batches = 0
         
-        # Training
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs}")
         for batch_idx, batch in enumerate(train_pbar):
-            # Move data to device
             images = batch['pixel_values'].to(device)
             captions = batch['caption_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            
-            # Forward pass
             start_time = time.time()
             outputs = model(images, captions, attention_mask)
             forward_time = time.time() - start_time
-            
-            # Calculate loss
             loss = criterion(outputs.view(-1, outputs.size(-1)), captions.view(-1))
-            
-            # Backward pass
             start_time = time.time()
             optimizer.zero_grad()
             loss.backward()
@@ -176,7 +151,6 @@ def train(args):
                 if torch.cuda.is_available():
                     print(f"GPU Memory: {torch.cuda.memory_allocated(0) / 1024**2:.2f} MB")
         
-        # Validation
         model.eval()
         val_loss = 0
         val_batches = 0

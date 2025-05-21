@@ -1,7 +1,3 @@
-"""
-CNN-based Arabic Image Captioning model using EfficientNet for feature extraction.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
